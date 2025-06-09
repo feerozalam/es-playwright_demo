@@ -36,12 +36,14 @@ npx playwright install
 ## Configuration
 
 1. Create a `.env` file in the project root:
+
    ```bash
    BROWSERSTACK_USERNAME=your_username
    BROWSERSTACK_ACCESS_KEY=your_access_key
    ```
 
 2. Configure test environments in `src/config/env.config.ts`:
+
    ```typescript
    {
      baseUrl: string;      // Application base URL
@@ -57,6 +59,7 @@ npx playwright install
    ```
 
 3. Configure BrowserStack capabilities in `src/config/browserstack.config.ts`:
+
    ```typescript
    {
      capabilities: {
@@ -210,7 +213,7 @@ Test execution generates several types of artifacts for debugging and analysis:
 
 ### Execution Logs
 
-- `test-results/logs/combined.log`: 
+- `test-results/logs/combined.log`:
   - Complete test execution logs
   - Navigation events
   - Test step execution
