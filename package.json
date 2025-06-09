@@ -1,0 +1,43 @@
+{
+  "name": "es_playwright_bdd_bs_ts",
+  "version": "1.0.0",
+  "description": "Playwright-Cucumber-TypeScript test automation framework with BrowserStack integration for cross-browser and device testing",
+  "main": "index.js",
+  "scripts": {
+    "clean": "node scripts/clean.js",
+    "build": "tsc",
+    "pretest": "npm run clean",
+    "test": "cucumber-js",
+    "test:local": "cross-env ENV=local cucumber-js",
+    "test:local:chrome": "cross-env ENV=local BROWSER=chrome cucumber-js",
+    "test:local:firefox": "cross-env ENV=local BROWSER=firefox cucumber-js",
+    "test:local:webkit": "cross-env ENV=local BROWSER=webkit cucumber-js",
+    "test:bs": "cross-env ENV=browserstack cucumber-js",
+    "test:bs:win": "cross-env ENV=browserstack BROWSER=win_chrome cucumber-js",
+    "test:bs:mac": "cross-env ENV=browserstack BROWSER=mac_safari cucumber-js",
+    "test:bs:ios": "cross-env ENV=browserstack BROWSER=ios_safari cucumber-js",
+    "test:bs:android": "cross-env ENV=browserstack BROWSER=android_chrome cucumber-js",
+    "test:parallel": "cross-env ENV=local cucumber-js --parallel 2",
+    "test:tags": "cucumber-js --tags",
+    "check:env": "node scripts/test-browser-config.js",
+    "report:open": "npx http-server . -o cucumber-report.html"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@cucumber/cucumber": "^11.3.0",
+    "@playwright/test": "^1.52.0",
+    "@types/cucumber": "^6.0.1",
+    "@types/node": "^22.15.30",
+    "browserstack-local": "^1.5.6",
+    "cross-env": "^7.0.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "winston": "^3.17.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0"
+  }
+}
