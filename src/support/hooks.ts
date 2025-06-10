@@ -40,15 +40,34 @@ Before({ timeout: 180000 }, async function () {
   this.page = page;
 });
 
-After(async function (scenario) {
+After({ timeout: 180000 }, async function (scenario) {
   if (scenario.result?.status === 'FAILED') {
     await ReportGenerator.captureScreenshot(scenario);
   }
 });
 
-AfterAll(async function () {
-  await BrowserManager.closeBrowser();
-  if (process.env.ENV === 'browserstack' && bsLocal) {
-    await new Promise((resolve) => bsLocal.stop(resolve));
+AfterAll({ timeout: 60000 }, async function () {
+  try {
+    await BrowserManager.closeBrowser();
+    
+    if (process.env.ENV === 'browserstack' && bsLocal) {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('BrowserStack Local stop timeout'));
+        }, 30000);
+
+        bsLocal.stop((error: Error | null) => {
+          clearTimeout(timeout);
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
+      });
+    }
+  } catch (error) {
+    console.error('Error in AfterAll hook:', error);
+    throw error;
   }
 });

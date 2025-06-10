@@ -7,6 +7,7 @@ module.exports = {
     paths: ['src/features/'],
     publishQuiet: true,
     timeout: 180000,
-    retry: process.env.ENV === 'browserstack' ? 1 : 0
+    //retry: process.env.ENV === 'browserstack' ? 1 : 0
+    retry: 0
   }
 };

@@ -1,3 +1,4 @@
+@home
 Feature: Home page UI
 
   Background:

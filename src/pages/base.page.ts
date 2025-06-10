@@ -2,8 +2,8 @@ import { Locator, Page, expect } from '@playwright/test';
 import { config } from '../config/env.config';
 
 export class BasePage {
-  constructor(protected page: Page) { }  async navigate(endpoint: string) {
-    await this.page.goto(`${config.baseUrl}${endpoint}`, { 
+  constructor(protected page: Page) { } async navigate(endpoint: string) {
+    await this.page.goto(`${config.baseUrl}${endpoint}`, {
       timeout: process.env.ENV === 'browserstack' ? 120000 : 30000,
       waitUntil: 'load'
     });
@@ -28,7 +28,9 @@ export class BasePage {
   async getText(selector: string) {
     await this.waitForElement(selector);
     return await this.page.innerText(selector);
-  }  async waitForPageLoad() {
+  }
+
+  async waitForPageLoad() {
     const timeout = process.env.ENV === 'browserstack' ? 120000 : 30000;
     try {
       await this.page.waitForLoadState('domcontentloaded', { timeout });

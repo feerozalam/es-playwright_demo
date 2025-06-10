@@ -1,3 +1,4 @@
+@login
 Feature: Login Page features
 
   Background:
@@ -6,6 +7,7 @@ Feature: Login Page features
     And I click on the 'Sign In' button
     Then I should be navigated to the Login page
 
+  @invalid_login
   Scenario Outline: Verify Email field validation
     Then I should see the Email field
     When I enter <invalid_email_address> in the Email field
