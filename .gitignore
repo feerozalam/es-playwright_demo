@@ -4,3 +4,4 @@
 *.log
 *.err
 *.html
+cucumber-report.html

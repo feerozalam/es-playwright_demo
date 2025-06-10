@@ -72,7 +72,8 @@ export class BrowserManager {
           source: 'playwright-cdp',
           debug: true,
           networkLogs: true,
-          consoleLogs: 'verbose'
+          consoleLogs: 'verbose',
+          real_mobile: true,
         }
       };
     }
@@ -102,6 +103,7 @@ export class BrowserManager {
       case 'firefox':
         return firefox;
       case 'webkit':
+        return webkit;
       case 'safari':
         return webkit;
       default:

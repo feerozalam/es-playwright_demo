@@ -16,7 +16,7 @@ setWorldConstructor(CustomWorld);
 
 let bsLocal: any;
 
-BeforeAll(async function () {
+BeforeAll({timeout: 30000}, async function () {
   if (process.env.ENV === 'browserstack') {
     if (!process.env.BROWSERSTACK_USERNAME || !process.env.BROWSERSTACK_ACCESS_KEY) {
       throw new Error('BROWSERSTACK_USERNAME and BROWSERSTACK_ACCESS_KEY must be provided');
