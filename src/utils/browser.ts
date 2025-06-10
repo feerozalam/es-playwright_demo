@@ -35,7 +35,30 @@ export class BrowserManager {
   private static context: any = null;
   private static page: Page | null = null;
 
-  // Update the Android capabilities in getBrowserStackCapabilities method
+  private static getBrowserType(): BrowserType {
+    const browserName = process.env.BROWSER?.toLowerCase() || 'chrome';
+    
+    // Handle BrowserStack specific browsers
+    if (process.env.ENV === 'browserstack') {
+      if (browserName.includes('safari')) {
+        return webkit;
+      }
+      // Default to chromium for other BrowserStack browsers
+      return chromium;
+    }
+
+    // Handle local browsers
+    switch (browserName) {
+      case 'firefox':
+        return firefox;
+      case 'webkit':
+      case 'safari':
+        return webkit;
+      default:
+        return chromium;
+    }
+  }
+
   private static getBrowserStackCapabilities() {
     const browserName = process.env.BROWSER?.toLowerCase() || 'chrome';
     const browserEnv = browserStackConfig.environments[browserName as keyof typeof browserStackConfig.environments];
@@ -44,8 +67,7 @@ export class BrowserManager {
       throw new Error(`Unsupported browser environment: ${browserName}`);
     }
 
-    // Add special handling for Android devices
-    const isAndroid = process.env.PLATFORM === 'android';
+    const isAndroid = browserName.includes('android');
     const baseCapabilities: BrowserStackCapabilities = {
       ...browserStackConfig.capabilities,
       ...browserEnv,
@@ -81,94 +103,51 @@ export class BrowserManager {
     return baseCapabilities;
   }
 
-  private static getBrowser(): BrowserType {
-    const browserName = process.env.BROWSER?.toLowerCase() || config.browser.toLowerCase();
-    const isAndroid = process.env.PLATFORM === 'android';
-
-    // For BrowserStack
-    if (process.env.ENV === 'browserstack') {
-      // Always use chromium for Android devices
-      if (isAndroid) {
-        return chromium;
-      }
-      // For iOS/Safari use webkit
-      if (browserName.includes('safari')) {
-        return webkit;
-      }
-      return chromium;
-    }
-
-    // For local testing
-    switch (browserName) {
-      case 'firefox':
-        return firefox;
-      case 'webkit':
-        return webkit;
-      case 'safari':
-        return webkit;
-      default:
-        return chromium;
-    }
-  }
-
-  static async getPage(): Promise<Page> {
+  public static async getPage(): Promise<Page> {
     try {
       if (!this.browser) {
-        const browserType = this.getBrowser();
-        const isAndroid = process.env.PLATFORM === 'android';
+        const browserType = this.getBrowserType();
+        logger.info(`Initializing browser with type: ${browserType.name()}`);
 
         if (process.env.ENV === 'browserstack') {
           const caps = this.getBrowserStackCapabilities();
-
-          // Ensure proper capability structure for Android
-          const formattedCaps = isAndroid ? {
-            ...caps,
-            'bstack:options': {
-              ...caps['bstack:options'],
-              source: 'playwright-cdp' // Required for Android
-            }
-          } : caps;
-
-          // Simplified endpoint construction for Android
+          const isAndroid = process.env.BROWSER?.toLowerCase().includes('android');
+          
+          // Construct the WebSocket endpoint
           const wsEndpoint = isAndroid
             ? `wss://cdp.browserstack.com/playwright-cdp/android?caps=${encodeURIComponent(JSON.stringify(caps))}`
             : `wss://cdp.browserstack.com/playwright?caps=${encodeURIComponent(JSON.stringify(caps))}`;
 
           logger.info('Connecting to BrowserStack...', {
-            platform: isAndroid ? 'Android' : 'Desktop',
+            platform: isAndroid ? 'Android' : caps.os,
+            browser: caps.browser,
             capabilities: caps,
             wsEndpoint
           });
 
-          this.browser = await browserType.connect({
+          // For BrowserStack, always use chromium for the CDP connection
+          this.browser = await chromium.connect({
             wsEndpoint,
             timeout: 120000,
             headers: {
               'Authorization': `Basic ${Buffer.from(`${browserStackConfig.user}:${browserStackConfig.key}`).toString('base64')}`
             }
           });
-          logger.info('Connected to BrowserStack successfully');
         } else {
-          this.browser = await browserType.launch({ headless: false });
-          logger.info('Launched local browser successfully');
+          this.browser = await browserType.launch({
+            headless: process.env.HEADLESS !== 'false'
+          });
         }
-
       }
 
-      // Create new context and page
-      if (!this.context || !this.page) {
-        const isMobile = process.env.PLATFORM === 'mobile';
+      if (!this.context) {
         this.context = await this.browser.newContext({
-          viewport: isMobile
-            ? { width: 375, height: 812 }
-            : config.viewport || { width: 1920, height: 1080 }
+          viewport: { width: 1920, height: 1080 }
         });
+      }
 
-        await this.context.setDefaultTimeout(60000);
-        await this.context.setDefaultNavigationTimeout(60000);
+      if (!this.page) {
         this.page = await this.context.newPage();
-
-        logger.info(`Created browser context with ${isMobile ? 'mobile' : 'desktop'} viewport`);
       }
 
       if (!this.page) {
@@ -177,8 +156,7 @@ export class BrowserManager {
 
       return this.page;
     } catch (error) {
-      logger.error('Error in getPage:', error);
-      await this.closeBrowser();
+      logger.error('Failed to initialize browser/page:', error);
       throw error;
     }
   }

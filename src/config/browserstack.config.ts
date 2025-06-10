@@ -22,7 +22,7 @@ export const browserStackConfig = {
       os_version: '11',
     },
     mac_safari: {
-      browser: 'safari',
+      browser: 'playwright-webkit',
       browser_version: 'latest',
       os: 'OS X',
       os_version: 'Sequoia',

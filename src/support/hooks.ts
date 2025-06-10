@@ -16,22 +16,48 @@ setWorldConstructor(CustomWorld);
 
 let bsLocal: any;
 
-BeforeAll({timeout: 30000}, async function () {
+BeforeAll({timeout: 60000}, async function () {
   if (process.env.ENV === 'browserstack') {
     if (!process.env.BROWSERSTACK_USERNAME || !process.env.BROWSERSTACK_ACCESS_KEY) {
       throw new Error('BROWSERSTACK_USERNAME and BROWSERSTACK_ACCESS_KEY must be provided');
     }
-    bsLocal = new BrowserStackLocal.Local();
-    await new Promise((resolve, reject) => {
-      bsLocal.start({ 
-        key: process.env.BROWSERSTACK_ACCESS_KEY,
-        forceLocal: true,
-        verbose: true
-      }, (error: Error) => {
-        if (error) return reject(error);
-        resolve(true);
-      });
-    });
+
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        bsLocal = new BrowserStackLocal.Local();
+        await new Promise((resolve, reject) => {
+          const connectTimeout = setTimeout(() => {
+            reject(new Error('BrowserStack Local connection timeout'));
+          }, 30000);
+
+          bsLocal.start({ 
+            key: process.env.BROWSERSTACK_ACCESS_KEY,
+            forceLocal: true,
+            verbose: true,
+            force: true, // Kill other running BrowserStackLocal instances
+            onlyAutomate: true, // Restrict to automation traffic only
+          }, (error: Error) => {
+            clearTimeout(connectTimeout);
+            if (error) return reject(error);
+            resolve(true);
+          });
+        });
+        break; // Connection successful
+      } catch (error) {
+        retryCount++;
+        console.error(`BrowserStack connection attempt ${retryCount} failed:`, error);
+        
+        if (retryCount === maxRetries) {
+          throw new Error(`Failed to connect to BrowserStack after ${maxRetries} attempts`);
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    }
   }
 });
 

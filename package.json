@@ -2,11 +2,11 @@
   "name": "es_playwright_bdd_bs_ts",
   "version": "1.0.0",
   "description": "Playwright-Cucumber-TypeScript test automation framework with BrowserStack integration for cross-browser and device testing",
-  "main": "index.js",
-  "scripts": {
+  "main": "index.js",  "scripts": {
     "clean": "node scripts/clean.js",
     "build": "tsc",
-    "pretest": "npm run clean",
+    "validate:env": "ts-node scripts/validate-env.ts",
+    "pretest": "npm run clean && npm run validate:env",
     "test": "cucumber-js",
     "test:local": "cross-env ENV=local cucumber-js",
     "test:local:chrome": "cross-env ENV=local BROWSER=chrome cucumber-js",
@@ -19,7 +19,6 @@
     "test:bs:android": "cross-env ENV=browserstack BROWSER=android_chrome cucumber-js",
     "test:parallel": "cross-env ENV=local cucumber-js --parallel 2",
     "test:tags": "cucumber-js --tags",
-    "check:env": "node scripts/test-browser-config.js",
     "report:open": "npx http-server . -o cucumber-report.html"
   },
   "keywords": [],
