@@ -31,13 +31,13 @@ export const browserStackConfig = {
       device: 'iPhone 14',
       os_version: '16',
       browser: 'safari',
-      real_mobile: 'true',
+      real_mobile: true,
     },
     android_chrome: {
       device: 'Samsung Galaxy S23',
       os_version: '13.0',
       browser: 'chrome',
-      real_mobile: 'true',
+      real_mobile: true,
     }
   }
 };
