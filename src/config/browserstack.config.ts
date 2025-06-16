@@ -1,7 +1,8 @@
 export const browserStackConfig = {
   user: process.env.BROWSERSTACK_USERNAME || 'BROWSERSTACK_USERNAME',
-  key: process.env.BROWSERSTACK_ACCESS_KEY || 'BROWSERSTACK_ACCESS_KEY', capabilities: {
-    'browserstack.local': true,
+  key: process.env.BROWSERSTACK_ACCESS_KEY || 'BROWSERSTACK_ACCESS_KEY',
+  capabilities: {
+    'browserstack.local': false,
     'browserstack.debug': true,
     'browserstack.console': 'verbose',
     'browserstack.networkLogs': true,
@@ -26,18 +27,24 @@ export const browserStackConfig = {
       browser_version: 'latest',
       os: 'OS X',
       os_version: 'Sequoia',
-    }, 
+    },
     ios_safari: {
       device: 'iPhone 14',
       os_version: '16',
       browser: 'safari',
-      real_mobile: true,
+      realMobile: true,
     },
     android_chrome: {
       device: 'Samsung Galaxy S23',
       os_version: '13.0',
       browser: 'chrome',
-      real_mobile: true,
+      realMobile: true,
+      isAndroid: true, // Added flag to identify Android device
+      'bstack:options': {
+        platformName: 'android',
+        browserName: 'chrome',
+        source: 'playwright-mobile'
+      }
     }
   }
 };

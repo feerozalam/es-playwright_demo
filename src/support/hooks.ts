@@ -1,99 +1,68 @@
-import { Before, After, BeforeAll, AfterAll, setWorldConstructor, World } from '@cucumber/cucumber';
+import { Before, After, BeforeAll, AfterAll, setWorldConstructor, World, IWorldOptions } from '@cucumber/cucumber';
+import { chromium, _android, AndroidDevice, Browser, BrowserContext, Page } from 'playwright';
 import { BrowserManager } from '../utils/browser';
-import { config } from '../config/env.config';
-import BrowserStackLocal from 'browserstack-local';
 import { ReportGenerator } from '../utils/report';
-import { Page } from '@playwright/test';
-import * as dotenv from 'dotenv';
 
-dotenv.config();
+
+let device: AndroidDevice | null = null;
 
 class CustomWorld extends World {
-  page?: Page;
+    page?: Page;
+
+    constructor(options: IWorldOptions) {
+        super(options);
+    }
 }
 
 setWorldConstructor(CustomWorld);
 
-let bsLocal: any;
 
-BeforeAll({timeout: 60000}, async function () {
-  if (process.env.ENV === 'browserstack') {
-    if (!process.env.BROWSERSTACK_USERNAME || !process.env.BROWSERSTACK_ACCESS_KEY) {
-      throw new Error('BROWSERSTACK_USERNAME and BROWSERSTACK_ACCESS_KEY must be provided');
-    }
-
-    const maxRetries = 3;
-    let retryCount = 0;
-    
-    while (retryCount < maxRetries) {
-      try {
-        bsLocal = new BrowserStackLocal.Local();
-        await new Promise((resolve, reject) => {
-          const connectTimeout = setTimeout(() => {
-            reject(new Error('BrowserStack Local connection timeout'));
-          }, 30000);
-
-          bsLocal.start({ 
-            key: process.env.BROWSERSTACK_ACCESS_KEY,
-            forceLocal: true,
-            verbose: true,
-            force: true, // Kill other running BrowserStackLocal instances
-            onlyAutomate: true, // Restrict to automation traffic only
-          }, (error: Error) => {
-            clearTimeout(connectTimeout);
-            if (error) return reject(error);
-            resolve(true);
-          });
-        });
-        break; // Connection successful
-      } catch (error) {
-        retryCount++;
-        console.error(`BrowserStack connection attempt ${retryCount} failed:`, error);
-        
-        if (retryCount === maxRetries) {
-          throw new Error(`Failed to connect to BrowserStack after ${maxRetries} attempts`);
+BeforeAll({ timeout: 60000 }, async function () {
+    // Validate required environment variables
+    if (process.env.ENV === 'browserstack') {
+        if (!process.env.BROWSERSTACK_USERNAME || !process.env.BROWSERSTACK_ACCESS_KEY) {
+            throw new Error('BROWSERSTACK_USERNAME and BROWSERSTACK_ACCESS_KEY must be provided');
         }
-        
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
     }
-  }
 });
 
-Before({ timeout: 180000 }, async function () {
-  const page = await BrowserManager.getPage();
-  this.page = page;
+Before({ timeout: 180000 }, async function (this: CustomWorld) {
+    try {
+        this.page = await BrowserManager.getPage();
+        if (!this.page) {
+            throw new Error('Failed to initialize browser page');
+        }
+        await this.page.setViewportSize({ width: 1920, height: 1080 });
+    } catch (error) {
+        console.error('Error initializing test environment:', error);
+        throw error;
+    }
 });
 
-After({ timeout: 180000 }, async function (scenario) {
-  if (scenario.result?.status === 'FAILED') {
-    await ReportGenerator.captureScreenshot(scenario);
-  }
+After({ timeout: 180000 }, async function (this: CustomWorld, scenario) {
+    try {
+        if (scenario.result?.status === 'FAILED' && this.page) {
+            try {
+                await ReportGenerator.captureScreenshot(scenario);
+            } catch (error) {
+                console.warn('Failed to capture screenshot:', error);
+            }
+        }
+        // Don't close the page here, let BrowserManager handle it
+        this.page = undefined;
+    } catch (error) {
+        console.error('Error in scenario cleanup:', error);
+        throw error;
+    } finally {
+        this.page = undefined;
+    }
 });
 
 AfterAll({ timeout: 60000 }, async function () {
-  try {
-    await BrowserManager.closeBrowser();
-    
-    if (process.env.ENV === 'browserstack' && bsLocal) {
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('BrowserStack Local stop timeout'));
-        }, 30000);
-
-        bsLocal.stop((error: Error | null) => {
-          clearTimeout(timeout);
-          if (error) {
-            reject(error);
-          } else {
-            resolve();
-          }
-        });
-      });
+    try {
+        await BrowserManager.closeBrowser();
+    } catch (error) {
+        console.error('Error in AfterAll hook:', error);
+        throw error;
     }
-  } catch (error) {
-    console.error('Error in AfterAll hook:', error);
-    throw error;
-  }
 });

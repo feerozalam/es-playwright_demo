@@ -8,6 +8,10 @@ import { logger } from '../utils/logger';
 Given('I navigate to the Equipment Rental home page', { timeout: config.test.defaultTimeout }, async function () {
   try {
     const page = await BrowserManager.getPage();
+    if (!page) {
+      throw new Error('Failed to get valid page from BrowserManager');
+    }
+    
     const equipmentRentalPage = new EquipmentRentalPage(page);
     logger.info('Navigating to Equipment Rental home page...');
     await equipmentRentalPage.navigate();
