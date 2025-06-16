@@ -5,3 +5,4 @@
 *.err
 *.html
 cucumber-report.html
+/.vscode/
