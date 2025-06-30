@@ -32,10 +32,10 @@ interface BrowserStackCapabilities {
 }
 
 export class BrowserManager {
-  private static browser: Browser | null = null;
+  private static browser: Browser | AndroidDevice| null = null;
   private static context: any = null;
   private static page: Page | null = null;
-  private static device: AndroidDevice | null = null;
+  private static device: AndroidDevice | any | null = null;
 
   private static isAndroidSession(): boolean {
     const browserName = process.env.BROWSER?.toLowerCase() || 'chrome';
@@ -43,6 +43,7 @@ export class BrowserManager {
   }
 
   private static getBrowserType(): BrowserType {
+    //TODO : Resolve to contains()
     const browserName = process.env.BROWSER?.toLowerCase() || 'chrome';
 
     // Handle BrowserStack specific browsers
@@ -75,41 +76,78 @@ export class BrowserManager {
     }
 
     const isAndroid = browserName.includes('android');
+    const isIOS = browserName.includes('ios') || browserName.includes('iphone') || browserName.includes('ipad');
     const timestamp = new Date().toISOString();
 
-    const baseCapabilities: BrowserStackCapabilities = {
-      ...browserStackConfig.capabilities,
-      ...browserEnv,
+    // Base BrowserStack-specific capabilities (no app-related fields)
+    const baseBrowserStackCaps = {
+      'browserstack.local': false,
       'browserstack.debug': true,
       'browserstack.console': 'verbose',
-      name: `Test Run - ${timestamp}`,
-      build: `${browserName} Build ${timestamp}`,
-      'bstack:options': {
-        debug: true,
-        networkLogs: true,
-        consoleLogs: 'verbose'
-      }
+      'browserstack.networkLogs': true,
+      'name': `Test Run - ${timestamp}`,
+      'build': `${browserName} Build ${timestamp}`,
+      'project': 'ES_Playwright_BDD_BS_TS'
     };
 
     if (isAndroid) {
+      // Android web browser testing capabilities
+      const androidEnv = browserEnv as any;
+      
       return {
-        ...baseCapabilities,
+        ...baseBrowserStackCaps,
+        'device': androidEnv.device || 'Samsung Galaxy S22',
+        'os_version': androidEnv.os_version || '12.0',
+        'browser': androidEnv.browser || 'chrome',
+        'realMobile': true,
         'bstack:options': {
-          ...baseCapabilities['bstack:options'],
-          deviceName: process.env.DEVICE_NAME || 'Samsung Galaxy S23',
-          osVersion: process.env.OS_VERSION || '13.0',
-          platformName: 'android',
-          browserName: 'chrome',
-          source: 'playwright-mobile',
-          debug: true,
-          networkLogs: true,
-          consoleLogs: 'verbose',
-          realMobile: true,
+          'debug': true,
+          'networkLogs': true,
+          'consoleLogs': 'verbose',
+          'deviceName': androidEnv.device || 'Samsung Galaxy S22',
+          'osVersion': androidEnv.os_version || '12.0',
+          'platformName': 'android',
+          'browserName': androidEnv.browser || 'chrome'
         }
       };
     }
 
-    return baseCapabilities;
+    if (isIOS) {
+      // iOS web browser testing capabilities - NO app-related fields
+      const iosEnv = browserEnv as any;
+      
+      return {
+        ...baseBrowserStackCaps,
+        'device': iosEnv.device || 'iPhone 14',
+        'os_version': iosEnv.os_version || '16',
+        'browser': 'safari', // iOS web testing always uses Safari
+        'realMobile': true,
+        'bstack:options': {
+          'debug': true,
+          'networkLogs': true,
+          'consoleLogs': 'verbose',
+          'deviceName': iosEnv.device || 'iPhone 14',
+          'osVersion': iosEnv.os_version || '16',
+          'platformName': 'ios',
+          'browserName': 'safari'
+        }
+      };
+    }
+
+    // Desktop browser capabilities
+    return {
+      ...baseBrowserStackCaps,
+      'browser': browserEnv.browser || 'chrome',
+      'browser_version': browserEnv.browser_version || 'latest',
+      'os': browserEnv.os || 'Windows',
+      'os_version': browserEnv.os_version || '10',
+      'resolution': '1920x1080',
+      'bstack:options': {
+        'debug': true,
+        'networkLogs': true,
+        'consoleLogs': 'verbose'
+      }
+    };
   }
 
 
@@ -139,13 +177,13 @@ export class BrowserManager {
           const wsEndpoint = `wss://cdp.browserstack.com/playwright?caps=${encodeURIComponent(JSON.stringify(caps))}`;
 
           logger.info('Connecting to BrowserStack...', {
-            platform: isAndroid ? 'Android' : caps.os,
-            browser: caps.browser,
+            platform: isAndroid ? 'Android' : (caps as any).os || 'Unknown',
+            browser: (caps as any).browser,
             capabilities: caps,
             wsEndpoint
           });
 
-          const maxRetries = 3;
+          const maxRetries = 5;
           let lastError;
 
           for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -153,14 +191,18 @@ export class BrowserManager {
               // Connect to BrowserStack with longer timeout for mobile devices
               if (isAndroid) {
                 const wsEndpoint = `wss://cdp.browserstack.com/playwright?caps=${encodeURIComponent(JSON.stringify(caps))}`;
-                this.device = await _android.connect(wsEndpoint, { timeout: 180000 });
-                await this.device.shell('am force-stop com.android.chrome');
+                this.device = await _android.connect(wsEndpoint, { 
+                  timeout: 180000,
+                  headers: {
+                    'Authorization': `Basic ${Buffer.from(`${browserStackConfig.user}:${browserStackConfig.key}`).toString('base64')}`
+                  }
+                });
+                this.context = await this.device.launchBrowser();
                 break;
-              }
-              else {
+              } else {
                 this.browser = await browserType.connect({
                   wsEndpoint,
-                  timeout: 120000,
+                  timeout: 180000,
                   headers: {
                     'Authorization': `Basic ${Buffer.from(`${browserStackConfig.user}:${browserStackConfig.key}`).toString('base64')}`
                   }
@@ -174,7 +216,7 @@ export class BrowserManager {
               if (attempt === maxRetries) {
                 throw new Error(`Failed to connect after ${maxRetries} attempts: ${error && typeof error === 'object' && 'message' in error ? (error as Error).message : String(error)}`);
               }
-              await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds before retry
+              await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds before retry
             }
           }
         } else {
@@ -190,18 +232,14 @@ export class BrowserManager {
           throw new Error('Browser instance is null when trying to create a context.');
         }
 
-        if (isAndroid && process.env.ENV === 'browserstack') {
-          // For Android, create a context with mobile-specific settings
-          this.context = await this.browser.newContext({
-            viewport: { width: 360, height: 740 },
-            deviceScaleFactor: 2,
-            isMobile: true,
-            userAgent: 'Mozilla/5.0 (Linux; Android 13.0; Samsung Galaxy S23) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36'
-          });
-        } else {
+        // Only call newContext if this.browser is a Browser, not AndroidDevice
+        if (!isAndroid && 'newContext' in this.browser) {
           this.context = await this.browser.newContext({
             viewport: { width: 1920, height: 1080 }
           });
+        } else if (isAndroid && process.env.ENV === 'browserstack') {
+          // For Android, context is already set via this.device.launchBrowser()
+          // No action needed here
         }
       }
       if (!this.page) {
@@ -219,11 +257,14 @@ export class BrowserManager {
       throw error;
     }
   } static async closeBrowser(): Promise<void> {
+    console.log('BrowserManager.closeBrowser() called');
     try {
       // Close in reverse order of creation
       if (this.page) {
+        console.log('Closing page...');
         try {
           await this.page.close().catch(() => { });
+          console.log('Page closed successfully');
         } catch (err) {
           logger.warn('Non-critical error while closing page', { error: err });
         } finally {
@@ -232,9 +273,11 @@ export class BrowserManager {
       }
 
       if (this.context) {
+        console.log('Closing context...');
         try {
           // Simple close without validation to avoid protocol errors
           await Promise.resolve(this.context.close()).catch(() => { });
+          console.log('Context closed successfully');
         } catch (err) {
           logger.warn('Non-critical error while closing context', { error: err });
         } finally {
@@ -243,11 +286,19 @@ export class BrowserManager {
       }
 
       if (this.browser) {
+        console.log('Closing browser...');
         try {
-          const isConnected = this.browser.isConnected();
-          if (isConnected) {
+          if ('isConnected' in this.browser && typeof this.browser.isConnected === 'function') {
+            const isConnected = this.browser.isConnected();
+            console.log(`Browser connected status: ${isConnected}`);
+            if (isConnected) {
+              await Promise.resolve(this.browser.close()).catch(() => { });
+            }
+          } else {
+            // For AndroidDevice, just attempt to close
             await Promise.resolve(this.browser.close()).catch(() => { });
           }
+          console.log('Browser closed successfully');
         } catch (err) {
           logger.warn('Non-critical error while closing browser', { error: err });
         } finally {
@@ -255,9 +306,23 @@ export class BrowserManager {
         }
       }
 
+      if (this.device) {
+        console.log('Closing Android device...');
+        try {
+          await Promise.resolve(this.device.close()).catch(() => { });
+          console.log('Android device closed successfully');
+        } catch (err) {
+          logger.warn('Non-critical error while closing device', { error: err });
+        } finally {
+          this.device = null;
+        }
+      }
+
       logger.info('Browser cleanup completed');
+      console.log('BrowserManager.closeBrowser() completed');
     } catch (error) {
       logger.error('Error during browser cleanup', { error });
+      console.error('BrowserManager.closeBrowser() failed:', error);
     }
   }
 }

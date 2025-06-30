@@ -13,7 +13,10 @@ export const browserStackConfig = {
     'browserstack.idleTimeout': 300,
     'name': `ES Rental Test`,
     'build': `ES Build ${new Date().toISOString()}`,
-    'project': 'ES_Playwright_BDD_BS_TS'
+    'project': 'ES_Playwright_BDD_BS_TS',
+    'browserstack.appiumLogs': true,
+    'browserstack.deviceLogs': true,
+    'autoGrantPermissions': true
   },
   environments: {
     win_chrome: {
@@ -30,20 +33,23 @@ export const browserStackConfig = {
     },
     ios_safari: {
       device: 'iPhone 14',
+      os: 'iOS',
       os_version: '16',
       browser: 'safari',
+      browser_version: 'latest',
       realMobile: true,
     },
     android_chrome: {
-      device: 'Samsung Galaxy S23',
-      os_version: '13.0',
+      device: 'Samsung Galaxy S22',
+      os: 'Android',
+      os_version: '12.0',
       browser: 'chrome',
-      realMobile: true,
-      isAndroid: true, // Added flag to identify Android device
+      channel: 'chrome',
+      browser_version: 'latest',
+      isAndroid: true,
       'bstack:options': {
         platformName: 'android',
         browserName: 'chrome',
-        source: 'playwright-mobile'
       }
     }
   }
