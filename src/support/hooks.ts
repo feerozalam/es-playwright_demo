@@ -27,29 +27,66 @@ BeforeAll({ timeout: 60000 }, async function () {
 });
 
 Before({ timeout: 180000 }, async function (this: CustomWorld) {
-    try {
-        this.page = await BrowserManager.getPage();
-        if (!this.page) {
-            throw new Error('Failed to initialize browser page');
+    const isAndroid = process.env.BROWSER === 'android_chrome';
+    const maxRetries = isAndroid ? 5 : 1;
+    const retryDelayMs = 5000;
+    let lastError;
+    
+    console.log(`Before hook started, isAndroid: ${isAndroid}, ENV: ${process.env.ENV}, BROWSER: ${process.env.BROWSER}`);
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`Attempt ${attempt} to get browser page`);
+            this.page = await BrowserManager.getPage();
+            if (!this.page) {
+                throw new Error('Failed to initialize browser page');
+            }
+            console.log('Browser page obtained successfully');
+            await this.page.setViewportSize({ width: 1920, height: 1080 });
+            console.log('Viewport size set successfully, Before hook completed');
+            return;
+        } catch (error) {
+            lastError = error;
+            console.error(`Attempt ${attempt} to initialize browser page failed:`, error);
+            if (attempt < maxRetries) {
+                console.log(`Waiting ${retryDelayMs}ms before retry ${attempt + 1}`);
+                await new Promise(res => setTimeout(res, retryDelayMs));
+            }
         }
-        await this.page.setViewportSize({ width: 1920, height: 1080 });
-    } catch (error) {
-        console.error('Error initializing test environment:', error);
-        throw error;
     }
+    console.error('Error initializing test environment after retries:', lastError);
+    throw lastError;
 });
 
 After({ timeout: 180000 }, async function (this: CustomWorld, scenario) {
+    const isAndroid = process.env.BROWSER === 'android_chrome';
+    console.log(`After hook started for scenario: ${scenario.pickle.name}, isAndroid: ${isAndroid}, result: ${scenario.result?.status}`);
+    
     try {
         if (scenario.result?.status === 'FAILED' && this.page) {
             try {
+                console.log('Attempting to capture screenshot for failed scenario');
                 await ReportGenerator.captureScreenshot(scenario);
+                console.log('Screenshot captured successfully');
             } catch (error) {
                 console.warn('Failed to capture screenshot:', error);
             }
         }
-        // Don't close the page here, let BrowserManager handle it
+
+        // For Android/BrowserStack, explicitly close page and context after each scenario
+        if (this.page && isAndroid && process.env.ENV === 'browserstack') {
+            try {
+                console.log('Explicitly closing page for Android/BrowserStack');
+                await this.page.close();
+                console.log('Page closed successfully');
+            } catch (error) {
+                console.warn('Error closing page:', error);
+            }
+        }
+
+        // Don't close the page here for non-Android, let BrowserManager handle it
         this.page = undefined;
+        console.log('After hook completed successfully');
     } catch (error) {
         console.error('Error in scenario cleanup:', error);
         throw error;
