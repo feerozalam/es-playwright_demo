@@ -2,7 +2,18 @@ import { Before, After, BeforeAll, AfterAll, setWorldConstructor, World, IWorldO
 import { chromium, _android, AndroidDevice, Browser, BrowserContext, Page } from 'playwright';
 import { BrowserManager } from '../utils/browser';
 import { ReportGenerator } from '../utils/report';
+import { HomePage } from '@pages/home.page';
+import { LoginPage } from '@pages/login.page';
+import { EquipmentRentalPage } from '@pages/equipment-rental.page';
 
+declare module '@cucumber/cucumber' {
+    interface World {
+        page?: Page;
+        homePage?: HomePage;
+        loginPage?: LoginPage;
+        equipmentRentalPage?: EquipmentRentalPage;
+    }
+}
 
 let device: AndroidDevice | null = null;
 
