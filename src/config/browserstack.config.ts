@@ -8,15 +8,21 @@ export const browserStackConfig = {
     'browserstack.networkLogs': true,
     'browserstack.playwrightLogs': true,
     'browserstack.screenshot': true,
+    'browserstack.video': true,
     'browserstack.networkProfile': null,
     'browserstack.selenium_version': '4.0.0',
     'browserstack.idleTimeout': 300,
-    'name': `ES Rental Test`,
-    'build': `ES Build ${new Date().toISOString()}`,
+    'browserstack.acceptSslCerts': true,
+    'browserstack.acceptInsecureCerts': true,
+    'name': `ES Rental Test - ${new Date().toISOString()}`,
+    'build': `ES Build ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
     'project': 'ES_Playwright_BDD_BS_TS',
     'browserstack.appiumLogs': true,
     'browserstack.deviceLogs': true,
-    'autoGrantPermissions': true
+    'autoGrantPermissions': true,
+    // Enable status reporting
+    'browserstack.sendKeys': true,
+    'browserstack.maskCommands': 'setValues, getValues, setCookies, getCookies'
   },
   environments: {
     win_chrome: {

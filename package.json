@@ -17,6 +17,8 @@
     "test:bs:mac": "cross-env ENV=browserstack BROWSER=mac_safari cucumber-js",
     "test:bs:ios": "cross-env ENV=browserstack BROWSER=ios_safari cucumber-js",
     "test:bs:android": "cross-env ENV=browserstack BROWSER=android_chrome cucumber-js",
+    "test:bs:debug": "cross-env ENV=browserstack BROWSER=win_chrome cucumber-js --tags @debug",
+    "test:bs:status": "node scripts/test-browserstack-status.js",
     "test:parallel": "cross-env ENV=local cucumber-js --parallel 2",
     "test:tags": "cucumber-js --tags",
     "report:open": "npx http-server . -o cucumber-report.html"

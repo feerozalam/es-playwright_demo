@@ -2,6 +2,7 @@ import { Before, After, BeforeAll, AfterAll, setWorldConstructor, World, IWorldO
 import { chromium, _android, AndroidDevice, Browser, BrowserContext, Page } from 'playwright';
 import { BrowserManager } from '../utils/browser';
 import { ReportGenerator } from '../utils/report';
+import { BrowserStackUtils } from '../utils/browserstack';
 import { HomePage } from '@pages/home.page';
 import { LoginPage } from '@pages/login.page';
 import { EquipmentRentalPage } from '@pages/equipment-rental.page';
@@ -54,6 +55,13 @@ Before({ timeout: 180000 }, async function (this: CustomWorld) {
             }
             console.log('Browser page obtained successfully');
             await this.page.setViewportSize({ width: 1920, height: 1080 });
+            
+            // Set session name for better identification in BrowserStack dashboard
+            if (process.env.ENV === 'browserstack' && this.page) {
+                const sessionName = `ES Test - ${new Date().toISOString()}`;
+                await BrowserStackUtils.setSessionName(this.page, sessionName);
+            }
+            
             console.log('Viewport size set successfully, Before hook completed');
             return;
         } catch (error) {
@@ -74,32 +82,49 @@ After({ timeout: 180000 }, async function (this: CustomWorld, scenario) {
     console.log(`After hook started for scenario: ${scenario.pickle.name}, isAndroid: ${isAndroid}, result: ${scenario.result?.status}`);
     
     try {
+        // Update BrowserStack status based on scenario result - Using official BrowserStack method
+        if (this.page && process.env.ENV === 'browserstack') {
+            const status = scenario.result?.status === 'PASSED' ? 'passed' : 'failed';
+            const reason = `Scenario: ${scenario.pickle.name} - ${scenario.result?.status || 'UNKNOWN'}`;
+            
+            console.log(`🔄 Updating BrowserStack session status to: ${status}`);
+            console.log(`📝 Reason: ${reason}`);
+            
+            const success = await BrowserStackUtils.updateSessionStatus(this.page, status, reason);
+            
+            if (success) {
+                console.log(`✅ BrowserStack session status successfully updated to: ${status}`);
+            } else {
+                console.log(`❌ Failed to update BrowserStack session status to: ${status}`);
+            }
+        }
+
+        // Capture screenshot for failed scenarios
         if (scenario.result?.status === 'FAILED' && this.page) {
             try {
-                console.log('Attempting to capture screenshot for failed scenario');
+                console.log('📸 Capturing screenshot for failed scenario');
                 await ReportGenerator.captureScreenshot(scenario);
-                console.log('Screenshot captured successfully');
+                console.log('✅ Screenshot captured successfully');
             } catch (error) {
-                console.warn('Failed to capture screenshot:', error);
+                console.warn('⚠️ Failed to capture screenshot:', error);
             }
         }
 
-        // For Android/BrowserStack, explicitly close page and context after each scenario
+        // Close page for Android/BrowserStack sessions
         if (this.page && isAndroid && process.env.ENV === 'browserstack') {
             try {
-                console.log('Explicitly closing page for Android/BrowserStack');
+                console.log('🔒 Closing page for Android/BrowserStack session');
                 await this.page.close();
-                console.log('Page closed successfully');
+                console.log('✅ Page closed successfully');
             } catch (error) {
-                console.warn('Error closing page:', error);
+                console.warn('⚠️ Error closing page:', error);
             }
         }
 
-        // Don't close the page here for non-Android, let BrowserManager handle it
         this.page = undefined;
-        console.log('After hook completed successfully');
+        console.log('✅ After hook completed successfully');
     } catch (error) {
-        console.error('Error in scenario cleanup:', error);
+        console.error('❌ Error in scenario cleanup:', error);
         throw error;
     } finally {
         this.page = undefined;
@@ -109,8 +134,9 @@ After({ timeout: 180000 }, async function (this: CustomWorld, scenario) {
 AfterAll({ timeout: 60000 }, async function () {
     try {
         await BrowserManager.closeBrowser();
+        console.log('✅ AfterAll hook completed successfully');
     } catch (error) {
-        console.error('Error in AfterAll hook:', error);
+        console.error('❌ Error in AfterAll hook:', error);
         throw error;
     }
 });

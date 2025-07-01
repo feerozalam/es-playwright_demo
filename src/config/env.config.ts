@@ -14,7 +14,7 @@ const defaultConfig: EnvironmentConfig = {
   baseUrl: 'https://equipmentshare-us-7fcd6ee2fbc58ac5b15ef.webflow.io',
   browser: 'chrome',
   test: {
-    defaultTimeout: 60000
+    defaultTimeout: 90000
   },
   viewport: {
     width: 1920,
