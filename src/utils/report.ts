@@ -4,23 +4,50 @@ import { join } from 'path';
 
 export class ReportGenerator {
   private static reportsDir = join(process.cwd(), 'reports');
-  static async captureScreenshot(scenario: ITestCaseHookParameter & { [key: string]: any }) {
+  
+  /**
+   * Capture screenshot for embedding in report
+   * @param page - Playwright page object
+   * @returns Promise<Buffer | undefined> - Screenshot buffer
+   */
+  static async captureScreenshot(page: any): Promise<Buffer | undefined> {
     try {
-      const { page } = scenario;
       if (page) {
-        if (!existsSync(this.reportsDir)) {
-          mkdirSync(this.reportsDir, { recursive: true });
-        }
-
-        const screenshot = await page.screenshot({
-          path: join(this.reportsDir, `${scenario.pickle.name.replace(/\s+/g, '_')}.png`),
-          fullPage: true
+        console.log('📸 Taking screenshot...');
+        
+        // Capture screenshot as buffer for embedding in report
+        const screenshotBuffer = await page.screenshot({
+          fullPage: true,
+          type: 'png'
         });
 
-        return screenshot;
+        console.log('� Screenshot captured successfully');
+        return screenshotBuffer;
       }
     } catch (error) {
-      console.error('Failed to capture screenshot:', error);
+      console.error('❌ Failed to capture screenshot:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Save screenshot to file system for backup
+   * @param scenarioName - Name of the scenario
+   * @param screenshotBuffer - Screenshot buffer
+   */
+  static async saveScreenshotToFile(scenarioName: string, screenshotBuffer: Buffer) {
+    try {
+      if (!existsSync(this.reportsDir)) {
+        mkdirSync(this.reportsDir, { recursive: true });
+      }
+
+      const fileName = `${scenarioName.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.png`;
+      const filePath = join(this.reportsDir, fileName);
+      
+      writeFileSync(filePath, screenshotBuffer);
+      console.log(`💾 Screenshot also saved to: ${filePath}`);
+    } catch (error) {
+      console.warn('⚠️ Failed to save screenshot to file:', error);
     }
   }
 

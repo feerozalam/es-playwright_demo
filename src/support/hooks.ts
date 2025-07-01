@@ -1,5 +1,10 @@
 import { Before, After, BeforeAll, AfterAll, setWorldConstructor, World, IWorldOptions } from '@cucumber/cucumber';
 import { chromium, _android, AndroidDevice, Browser, BrowserContext, Page } from 'playwright';
+import * as dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
+
 import { BrowserManager } from '../utils/browser';
 import { ReportGenerator } from '../utils/report';
 import { BrowserStackUtils } from '../utils/browserstack';
@@ -99,12 +104,22 @@ After({ timeout: 180000 }, async function (this: CustomWorld, scenario) {
             }
         }
 
-        // Capture screenshot for failed scenarios
+        // Capture screenshot for failed scenarios and embed in HTML report
         if (scenario.result?.status === 'FAILED' && this.page) {
             try {
                 console.log('📸 Capturing screenshot for failed scenario');
-                await ReportGenerator.captureScreenshot(scenario);
-                console.log('✅ Screenshot captured successfully');
+                const screenshotBuffer = await ReportGenerator.captureScreenshot(this.page);
+                
+                // Attach screenshot to Cucumber report (embeds in HTML)
+                if (screenshotBuffer) {
+                    await this.attach(screenshotBuffer, 'image/png');
+                    console.log('📎 Screenshot embedded in Cucumber HTML report');
+                    
+                    // Also save to file for backup/debugging
+                    await ReportGenerator.saveScreenshotToFile(scenario.pickle.name, screenshotBuffer);
+                }
+                
+                console.log('✅ Screenshot captured and attached successfully');
             } catch (error) {
                 console.warn('⚠️ Failed to capture screenshot:', error);
             }
