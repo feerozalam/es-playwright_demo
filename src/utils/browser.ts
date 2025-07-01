@@ -43,7 +43,6 @@ export class BrowserManager {
   }
 
   private static getBrowserType(): BrowserType {
-    //TODO : Resolve to contains()
     const browserName = process.env.BROWSER?.toLowerCase() || 'chrome';
 
     // Handle BrowserStack specific browsers
