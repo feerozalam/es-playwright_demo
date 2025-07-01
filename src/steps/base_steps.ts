@@ -1,4 +1,5 @@
 import { logger } from '../utils/logger';
+import { Page } from '@playwright/test';
 
 export class BaseSteps {
     protected validatePageContext(page: any): void {
